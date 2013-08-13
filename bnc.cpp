@@ -35,7 +35,7 @@ void spin();
 // second, where a single revolution requires 4ms.  4ms is exactly 8000 timer
 // cycles on our timer, which means anything half of 8000 is going faster than
 // any known HD.  If such a value is captured, it is ignored.
-#define SPURIOUS_INT    (2 * MILLITICK)
+#define SPURIOUS_INT    4000
 
 // Helper macros for frobbing bits
 #define bitset(var,bitno) ((var) |= (1 << (bitno)))
@@ -43,6 +43,7 @@ void spin();
 #define bittst(var,bitno) (var& (1 << (bitno)))
 
 #define TACH_PIN 2
+#define STROBE_PIN 3
 
 // The period of the platter in timer ticks
 int period;
@@ -65,34 +66,36 @@ void SetupHardware(void)
   // disable global interrupts
   cli();
 
-  /*
   // setup timer0 - 8bit
   // resonsible for timing the LEDs
-  TCCR0A = 0;
-  TCCR0B = 0;  
+  TCCR2A = 0;
+  TCCR2B = 0;  
   // select CTC mode
-  bitset(TCCR0A, WGM01);
+  bitset(TCCR2A, WGM21);
   // select prescaler clk / 8
-  bitset(TCCR0B, CS01);
+  bitset(TCCR2B, CS21);
   // enable compare interrupt
-  bitset(TIMSK0, OCIE0A);
-  Serial.print("0");
-  */
+  OCR2A = 100;
+  bitset(TIMSK2, OCIE2A);
+  Serial.print("2");
   
   // setup timer1 - 16bit
   // responsible for timing the rotation of the platter
   TCCR1B = 0;
   TCCR1A = 0;
   // select prescaler clk / 8
+  bitset(TCCR1B, CS10);
   bitset(TCCR1B, CS11);
   // reset timer
   TCNT1 = 0;
   // enable overflow interrupt
-  bitset(TIMSK1, TOIE1);
+  //bitset(TIMSK1, TOIE1);
   Serial.print("1");
 
-  pinMode(2, INPUT);
-  digitalWrite(2, HIGH);
+  pinMode(STROBE_PIN, OUTPUT);
+  
+  pinMode(TACH_PIN, INPUT);
+  digitalWrite(TACH_PIN, HIGH);
   attachInterrupt(0, spin, RISING);
   Serial.print("G");
 
@@ -181,22 +184,22 @@ void loop(void)
 void spin()
 {
   // Capture the 16bit count on timer1, this represents one revolution
-  //period = TCNT1;
-  period += TCNT1;
+  size_t putative_period = TCNT1;
   // If the period is shorter than our threshold, don't do anything
-  if(period < SPURIOUS_INT)
+  if(putative_period < SPURIOUS_INT)
   {
     return;
   }
-  // Reset timer1 so it can clock the next revolution
+  period = putative_period;
+  //digitalWrite(STROBE_PIN, HIGH);
+  PORTD |= _BV(3);
   TCNT1 = 0;
-  // Reset timer0 so it can start to accurately paint the slot 
-  TCNT0 = 0;
+  TCNT2 = 0;
+  OCR2A = 100;
   // Write out the first slice to the LEDs to PORTD
   //PORTD = FrameBuffer[page_visible][0];
   // Divide the time of single platter rotation by the number of drawable
   // divisions
-  //OCR0A = (period / divisions);
 }
 
 // This interrupt is called every time timer0 counts up to the 8bit value
@@ -205,12 +208,8 @@ void spin()
 // during the exact moment the slot is in its proper rotational position.
 // Using a 7200RPM drive with 255 divisions, this interrupt is called 
 // 31,200 times a second.
-ISR(TIMER0_COMPA_vect) {
-  // Write out the LED value to the Frame Buffer
-  //PORTD = FrameBuffer[page_visible][current_slice];
-  // Increment current slice, making sure to wrap it if it
-  // has accidently gotten too large
-  //current_slice = ((current_slice + 1) % divisions);
+ISR(TIMER2_COMPA_vect) {
+  PORTD &= ~(_BV(3));
 }
 
 // If the platter spin time overflows timer1, this is called

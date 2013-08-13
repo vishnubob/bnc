@@ -41,6 +41,7 @@ volatile unsigned long timer0_overflow_count = 0;
 volatile unsigned long timer0_millis = 0;
 static unsigned char timer0_fract = 0;
 
+/*
 #if defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
 SIGNAL(TIM0_OVF_vect)
 #else
@@ -63,6 +64,7 @@ SIGNAL(TIMER0_OVF_vect)
 	timer0_millis = m;
 	timer0_overflow_count++;
 }
+*/
 
 unsigned long millis()
 {
@@ -221,6 +223,7 @@ void init()
 #endif
 
 	// enable timer 0 overflow interrupt
+/*
 #if defined(TIMSK) && defined(TOIE0)
 	sbi(TIMSK, TOIE0);
 #elif defined(TIMSK0) && defined(TOIE0)
@@ -228,6 +231,7 @@ void init()
 #else
 	#error	Timer 0 overflow interrupt not set correctly
 #endif
+*/
 
 	// timers 1 and 2 are used for phase-correct hardware pwm
 	// this is better for motors as it ensures an even waveform
